@@ -51,7 +51,7 @@ bool WriteData(HANDLE handle, BYTE* data, DWORD length, DWORD* dwWritten);
 bool ReadData(HANDLE handle, BYTE* data, DWORD length, DWORD* dwRead, UINT timeout);
 void initialize_comm(HANDLE* hComm,int comInt);
 void CloseCom(HANDLE* hComm, DCB dcbMasterInitState);
-void send_command(char command);
+void send_command(BYTE command[], DWORD length);
 
 
 #endif // PC_UART_H_INCLUDED

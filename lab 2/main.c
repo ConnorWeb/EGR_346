@@ -8,9 +8,7 @@ Title: Lab 2 FRAM
 
 #include "pc_uart.h"
 
-int bpm;            //blink rate that is sent to the MSP
-int buf;            //Serial buffer variable
-char user = '\0';   //user input variable
+char user[100] = "";   //user input variable
 int tempo;          //blink rate that is received from the MSP
 
 
@@ -20,41 +18,33 @@ int main(void)
     printf("\n\n w - write\t f - display files\t m - show memory\t d - delete file\t r - read\t c - delete all files.\n\n");
 
     while(1){
-        while(user == '\0'){  //wait for input
-            scanf("%c",&user);
+        while(user[0] == '\0'){  //wait for input
+            gets(user);
             fflush(stdin);
         }
-        if(user == 'w' || user == 'f' || user == 'm' || user == 'd' || user == 'r' || user == 'c'){
-            send_command(user);    //send command to msp
-            user = '\0';
-        }
-        else if(user == 'q'){      //close communication port
+        if(strcmp(user, "q") == 0){      //close communication port
             CloseHandle(&hMasterCOM);
             break;
         }
         else{
-            printf("\n\n%c",user);
-            printf(" is invalid\n\n");
-            user = '\0';
+            send_command(user, strlen(user));    //send command to msp
+            user[0] = '\0';
         }
     }
 }
 
-void send_command(char command){
+void send_command(BYTE command[], DWORD length){
 
     DWORD dww;
     DWORD dwr;
 
-    BYTE wbuf; //serial write buffer
-    BYTE rbuf; //serial read buffer
+    strcat(command,"\0");  //write buffer string is appended with null character to indicate end of write
 
-    wbuf = command;
-
-    if(WriteData(hMasterCOM,&wbuf,1,&dww)){
-        printf("wrote %c successfully\n", wbuf);
+    if(WriteData(hMasterCOM,&command,length,&dww)){
+        printf("wrote %s successfully\n", command);
     }
     else{
-        printf("failed to write %c\n", wbuf);
+        printf("failed to write %s\n", command);
     }
     /*if(ReadData(hMasterCOM,&rbuf,1,&dwr,UART_TIMEOUT)){
         printf("read back %c successfully\n", rbuf);
