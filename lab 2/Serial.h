@@ -2,7 +2,7 @@
  * Serial.h
  *
  *  Created on: Feb 8, 2021
- *      Author: dakot
+ *      Author: dakota
  */
 //included libraries
 #include <msp.h>
@@ -15,9 +15,12 @@
 #define SERIAL_H_
 
 //Serial.c Function prototypes
+int check_read();
 void setupSerial(void);
-int readBuffer(void);
-void writeOutput(int send);
+void readBuffer(char str[]);
+int get_head();
+int get_tail();
+int get_length();
 
 #define EUSCI_Reset                   0x0001  // EUSCI in reset mode
 #define EUSCI_Interupt                0x0001  // enable read interrupt
