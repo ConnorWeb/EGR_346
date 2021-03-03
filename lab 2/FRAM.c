@@ -1,7 +1,17 @@
+/***************
+ * CLASS : EGR 436 EMBEDDED SYSTEMS INTERFACE
+ * PROFESSORS : JIAO AND BRAKORA
+ * DATE : 2/18/21
+ * LAB GROUP MEMBERS: DAKOTA CULBERTSON  ANDREW KORNAKI  CONNOR WEBSTER
+ * TITLE: LAB 2 UART SPI FRAM
+ * DESCRIPTION: THIS CODE STORES AND RETRIEVES FILES FROM AN FRAM CHIP
+ */
+
 #include "msp.h"
 #include <stdio.h>
 #include "Serial.h"
 #include "hardware.h"
+#include <ctype.h>
 
 #define WRSR    1      //write status register
 #define WRITE   2      //Write memory code
@@ -17,19 +27,22 @@ void SysTick_delay(uint16_t delay);
 void SPI_init();
 void FRAM_write(uint8_t command);
 void readData(uint8_t command);
+void seperate();
 
-//lab 1
-char action;
-uint8_t SerialFlag = 0;     //flag that indicates a complete serial read
-serbuf A;                   //circular buffer for UART storage
+
+uint8_t UART_read;      //used to check if there has been a UART communication
 
 //lab 2
 uint8_t data;
 uint8_t dataBack;
 uint16_t address = 0;
+char pc_string[BUFFER_SIZE];
+char command[BUFFER_SIZE];
+char extra[BUFFER_SIZE];
+char action;
 
-void main(void){
-    WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;     // stop watchdog timer
+int main(){
+    WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;        // stop watchdog timer
 
     setupSerial();
     GPIO_pins_init();
@@ -38,33 +51,36 @@ void main(void){
     __enable_interrupt();   //enable interrupts
 
     while(1){
-        if(SerialFlag){
-            SerialFlag = 0;
+        UART_read = check_read();
+        if(UART_read){
+            readBuffer(pc_string); //read in the value in the buffer to change the blink rate
+            //seperate();
+            printf("whole string from pc is: %s\ncommand is: %s\n extra is: %s\n\n", pc_string, command, extra);  //uncomment this line if the debugger is connected and you want to see the value
+
             //STORE
-            if(action == 'w'){
+            /*if(strcmp(command, "store") == 0){
                 FRAM_write(WRITE);
             }
             //DIR
-            if(action == 'f'){
+            if(strcmp(command, "dir") == 0){
                 //display_files()
             }
             //MEM
-            if(action == 'm'){
+            if(strcmp(command, "mem") == 0){
                 //show_memory()
             }
             //DELETE
-            if(action == 'd'){
+            if(strcmp(command, "delete") == 0){
                 //delete_file()
             }
             //READ
-            if(action == 'r'){
+            if(strcmp(command, "read") == 0){
                 readData(READ);
             }
             //CLEAR
-            if(action == 'c'){
+            if(strcmp(command, "clear") == 0){
                 //clear_all()
-            }
-            printf("action: %c\n", action);
+            }*/
         }
     }
 }
@@ -103,6 +119,7 @@ void SysTick_delay(uint16_t delay){
     while((SysTick->CTRL & 0x00010000) == 0);   //stays here while counting down
 }
 
+//needs work. mostly copied from EGR326 SPI lab
 void FRAM_write(uint8_t command){
     P2->OUT &= ~BIT4;       //CS low
     while(!(EUSCI_B0->IFG & 2));    //wait until ready to transmit
@@ -119,6 +136,7 @@ void FRAM_write(uint8_t command){
     SysTick_delay(10);
 }
 
+//needs work. mostly copied from EGR326 SPI lab
 void readData(uint8_t command){
     P2->OUT &= ~BIT4;       //CS low
     while(!(EUSCI_B0->IFG & 2));    //wait until ready to transmit
@@ -132,56 +150,27 @@ void readData(uint8_t command){
     SysTick_delay(10);
 }
 
-void setupSerial()
-{
-    P1->SEL0 |=  (BIT2 | BIT3); // P1.2 and P1.3 are EUSCI_A0 RX
-    P1->SEL1 &= ~(BIT2 | BIT3); // and TX respectively.
-
-    EUSCI_A0->CTLW0  |= BIT0; // Disables EUSCI. Default configuration is 8N1
-    EUSCI_A0->CTLW0 |= BIT7; // Connects to SMCLK BIT[7:6] = 10
-    /*******************************
-     * Baud Rate Configuration in MCTLW register
-     * UCBRSx:Fractional portion of baud rate integer(table 22-4)
-     * UCBRFx:First stage modulation(table 22-3)
-     * RESERVED: Bit 1-3  dont change ever
-     * UCOS16: Bit 0 enables oversampling (if integer N is greater than 16 use oversampling)
-     *
-     * -----------------Configuration process for 3MHz SMCLK with baud rate 115200---------------------------
-     * UCBRSx = 3000000/115200 = N = 26.041666 > 16 (use oversample) --> 3000000/(16*115200) = 1.6276
-     * UCBRSx table value: 0.6276 -> (0xB5)
-     * UCBRF = 0.628 * 16 = 10 (0x0A) (Remainder of the divide)
-     * UCOS16 = 1 (oversampling enabled)
-     */
-
-    EUSCI_A0->BRW = 1;          //integer portion of baud rate division 3000000/(16*115200) = 1.628 -> N = 1
-    EUSCI_A0->MCTLW = 0xB5A1;   //UCBRS (Bits 15-8) & UCBRF (Bits 7-4) & UCOS16 (Bit 0)
-    EUSCI_A0->CTLW0 &= ~BIT0;   // Enable EUSCI
-    EUSCI_A0->IFG &= ~BIT0;     // Clear interrupt
-    EUSCI_A0->IE |= BIT0;       // Enable interrupt
-    NVIC_EnableIRQ(EUSCIA0_IRQn);
-    //__enable_interrupt();
-}
-
-//sends information to the serial port
-
-void writeOutput(int send)
-{
-    EUSCI_A0->TXBUF = send;             //load the integer into the UART buffer
-    while(!(EUSCI_A0->IFG & BIT1));     //wait until the send flag is seen
-}
-
-//interrupt for serial port
-void EUSCIA0_IRQHandler(void)
-{
-    if (EUSCI_A0->IFG & BIT0)  // Interrupt on the receive line
-    {
-        action = EUSCI_A0->RXBUF;        //newest character goes to the head of the buffer
-        //A.buf[A.head] = bpm;
-        A.head = (A.head + 1) % BUFFER_SIZE;    //keeps the size of the buffer within a specific range
-        EUSCI_A0->IFG &= ~BIT0;                 //Clear the interrupt flag right away in case new data is ready
-        //if(A.buf[A.head - 1] == '\0'){          //set the flag that indicates a full read when a null character is read
-            SerialFlag = 1;
-        //}
+//seperates the command from pc
+//ex. command is "STORE testfile.txt" -> command array will have "STORE" and extra array will have "testfile.txt"
+void seperate(){
+    int i, j = 0, got_command = 0;
+    for(i = get_head() - get_length(); i < get_head; i++){
+        if(command[j] == ' '){
+            got_command = 1;
+            j = 0;
+            continue;
+        }
+        else if(command[j] == '\0'){
+            extra[0] = '\0';
+            return;
+        }
+        if(!got_command){
+            command[j] = tolower(pc_string[i]);
+        }
+        else{
+            extra[j] = tolower(pc_string[i]);
+        }
+        j++;
     }
 }
 
