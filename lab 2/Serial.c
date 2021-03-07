@@ -2,7 +2,7 @@
  * Serial.c
  *
  *  Created on: Feb 8, 2021
- *      Author: dakot
+ *      Author: dakota
  */
 //#include <msp.h>
 //#include <stdio.h>
@@ -10,10 +10,7 @@
 
 uint8_t SerialFlag = 0;     //flag that indicates a complete serial read
 uint8_t read_length;        //length of the most recent read
-//int storage_location = 0;   // used in the interrupt to store new data
 serbuf A;                   //circular buffer for UART storage
-//uint16_t read_location = A.head;      // used in the main application to read valid data that hasn't been read yet
-
 
 int check_read(){
     if(SerialFlag){
@@ -57,24 +54,21 @@ void setupSerial()
 //through the buffer until it sees a null value. when null is read, the values are
 //then converted into a single integer that is returned to the main function.
 void readBuffer(char str[BUFFER_SIZE]){
-   // int i = 0;                          //incrementing value for converting buffer values into ints
+    int i = 0;                          //incrementing value for converting buffer values into ints
     int k = 0;                          //incrementing value for reading from the buffer into a temporary array
-   // char read;                          //variable used to store a single buffer value for conversion
-   // int tempo = 0;                      //integer that is sent back as the blink speed
-   // int temp = 0;                       //temporarily holds the integer value of the buffer character when it is converted
+    char temp[BUFFER_SIZE];             //temporarily stores string from PC
+    read_length = 0;                    //length of the string read in
     int read_offset = 2;                //this offset value sets the read point in the UART buffer that should be the last character before null
     do{
-        str[k] = A.buf[A.head - read_offset - k];   //read UART buffer value into temporary buffer
+        temp[k] = A.buf[A.head - read_offset - k];   //read UART buffer value into temporary buffer
         k++; // Increment location in INPUT_BUFFER that has been read
     }
-    while(str[k-1] != '\0');        //stop storing values when a null character is read
-    /*while(Buffer_Read[i] != '\0'){          //convert values from the temporary buffer while they are not null
-        read = Buffer_Read[i];              //take single character from the UART buffer
-        temp = read - '0';                  //convert the value to an integer
-        tempo = tempo + (temp * pow(10,i)); //add each value read from the temporary buffer into an integer
-        i++;                                //increment read position
+    while(temp[k-1] != '\0');        //stop storing values when a null character is read
+    k -= 2;
+    for(i = 0; i <= k; i++){
+        str[i] = temp[k - i];       //string was read backwards into temp[], so put in str[] in order
+        read_length++;              //keep track of length
     }
-    return(tempo);      //send back the tempo value*/
 }
 
 //interrupt for serial port
@@ -91,6 +85,7 @@ void EUSCIA0_IRQHandler(void)
     }
 }
 
+//need these values to be available in FRAM.c so these get functions are needed
 int get_head(){
     return A.head;
 }
