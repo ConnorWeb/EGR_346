@@ -5,17 +5,21 @@ Class: EGR 436 10
 Title: Lab 2 FRAM
 */
 
-
 #include "pc_uart.h"
 
 char user[100] = "";   //user input variable
-int tempo;          //blink rate that is received from the MSP
-
 
 int main(void)
 {
     initialize_comm(&hMasterCOM,UART_PORT);
-    printf("\n\n w - write\t f - display files\t m - show memory\t d - delete file\t r - read\t c - delete all files.\n\n");
+    printf("\n---------------------------------------------------------------------------------------\n");
+    printf("STORE <filename> - store file as an entry to FRAM.\n");
+    printf("DIR - show a list of the files stored in FRAM.\n");
+    printf("MEM - display how much memory is used and how much is available.\n");
+    printf("DELETE <number> - delete entry from FRAM and defragment FRAM to effectively fill space.\n");
+    printf("READ <number> - display title and text of the entry.\n");
+    printf("CLEAR - erase all memory from FRAM.\n");
+    printf("---------------------------------------------------------------------------------------\n\n");
 
     while(1){
         while(user[0] == '\0'){  //wait for input
@@ -33,25 +37,26 @@ int main(void)
     }
 }
 
-void send_command(BYTE command[], DWORD length){
+void send_command(BYTE command[256], DWORD length){
 
     DWORD dww;
     DWORD dwr;
 
+    BYTE temp[256];
+
+    int i;
+    for(i = 0; i < 256; i++){
+        temp[i] = command[i];        //copy into local array. This fixed an issue with data not going through correctly
+    }
+
     strcat(command,"\0");  //write buffer string is appended with null character to indicate end of write
 
-    if(WriteData(hMasterCOM,&command,length,&dww)){
-        printf("wrote %s successfully\n", command);
+    if(WriteData(hMasterCOM,&temp,length + 1,&dww)){
+        printf("wrote %s successfully\n", temp);
     }
     else{
-        printf("failed to write %s\n", command);
+        printf("failed to write %s\n", temp);
     }
-    /*if(ReadData(hMasterCOM,&rbuf,1,&dwr,UART_TIMEOUT)){
-        printf("read back %c successfully\n", rbuf);
-    }
-    else{
-        printf("failed to read back %c\n", rbuf);
-    }*/
 }
 
 void initialize_comm(HANDLE* hComm, int comInt){
