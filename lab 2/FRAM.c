@@ -136,7 +136,7 @@ void FRAM_write(uint8_t command){
         EUSCI_B0->TXBUF = address;  //data sheet shows address is 13 bits but TXBUF is 8 bits...
 
     while(!(EUSCI_B0->IFG & 2));    //wait until ready to transmit
-        EUSCI_B0->TXBUF = 0;
+        EUSCI_B0->TXBUF = 'A';      //try to send one character to FRAM
 
     P2->OUT |=  BIT4;       //CS high
 }
